@@ -290,12 +290,12 @@ function Diagram () {
 
     function save () {
     	//TODO
-    	prompt("Data: ", JSON.stringify(cy.json()));
+    	prompt("Save", JSON.stringify(cy.json()));
     	layout();
     }
 
     function load () {
-    	cy.json(JSON.parse(prompt("Data: ")));
+    	cy.json(JSON.parse(prompt("Load")));
     }
 
 	function debug () {
