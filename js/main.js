@@ -4,6 +4,7 @@ function Diagram () {
 		return new Diagram();
 
     var LEGEND_HEIGHT = this.LEGEND_HEIGHT = 56;
+	var LEGEND_SEPARATION = this.LEGEND_SEPARATION = 50;
 
     var diagramLayoutOptions = this.diagramLayoutOptions = {
         name: "breadthfirst",
@@ -20,7 +21,7 @@ function Diagram () {
     	fit: true
     };
 
-    var legendInitialPosition = new vec2d(34, 29.5);
+    var legendInitialPosition = this.legendInitialPosition = new vec2d(34, 29.5);
 
     legendLayoutOptions["height"] = LEGEND_HEIGHT;
 
@@ -36,34 +37,40 @@ function Diagram () {
         layout: legendLayoutOptions,
 
         elements: [{
-			shape: "roundrectangle",
             selected: false,
             selectable: true,
             locked: false,
             grabbable: true,
-            width: "42px",
 
             position: legendInitialPosition,
 
             data: {
                 id: "process",
-            }
+            },
+
+			style: {
+				shape: "rectangle",
+				width: 48
+			}
         },
         {
-			shape: "triangle",
         	selected: false,
         	selectable: true,
         	locked: false,
         	grabbable: true,
-            width: 42,
 
         	position: legendInitialPosition.add(
-        		new vec2d(50, 0)
+        		new vec2d(LEGEND_SEPARATION, 0)
         	),
 
         	data: {
         		id: "decision"
-        	}
+        	},
+
+			style: {
+				shape: "polygon",
+				"shape-polygon-points": "0 -1 1 0 0 1 -1 0"
+			}
         }]
     });
 
@@ -93,7 +100,8 @@ function Diagram () {
                     content: "data(label)",
                     "text-outline-width": 5,
                     "text-outline-color": "#888",
-                    "color": "#FFF"
+                    "color": "#FFF",
+					"background-color": "#888"
                 }
             },
 
@@ -120,25 +128,27 @@ function Diagram () {
 
     cy.reset();
 
-    function newnodes () {
+    function newnodes (event) {
 
         cy.startBatch();
 
         var label = prompt("Label: ");
-        var activation = prompt("Activation data (json): ");
+        var activation = prompt("Node activation data/logic (json): ");
 
         var parent = selectionData.selected[ 0 ] || undefined;
         var child  = selectionData.selected[ 1 ] || undefined;
+		var target = event.cyTarget;
+		var num_elements = cy.elements().length;
 
         if ( label.length > 0 ) {
 
 		    var elements = [];
 
-		    elements.push(
+		    var element = cy.add(
 		        {
 		            group: "nodes",
 		            data: {
-		                id: label,
+		                id: label + num_elements,
 		                label: label,
 		                activation: activation,
 		                classes: "center-center"
@@ -147,12 +157,17 @@ function Diagram () {
 		            position: {
 		                x: 50,
 		                y: 200
-		            }
+		            },
+
+					style: target.style()
 		        }
 		    );
 
 		    if ( parent ) {
-		    	var id = parent.data().id;
+				var pid = parent.data().id;
+		    	var cid = element.data().id;
+
+				activation = prompt("Connection activation data/logic (json): ");
 
 		    	elements.push({
                     group: "edges",
@@ -162,15 +177,19 @@ function Diagram () {
                     grabbable: true,
 
                     data: {
-                    	id: (id + "->" + label),
-                    	source: id,
-                    	target: label
+                    	id: (pid + "->" + cid + num_elements),
+                    	source: pid,
+                    	target: cid,
+						activation: activation
                     }
 		    	});
 		    }
 
 		    if ( child ) {
-		    	var id = child.data().id;
+				var pid = element.data().id;
+		    	var cid = child.data().id;
+
+				activation = prompt("Connection activation data/logic (json): ");
 
 		    	elements.push({
                     group: "edges",
@@ -180,9 +199,10 @@ function Diagram () {
                     grabbable: true,
 
                     data: {
-                    	id: (label + "->" + id),
-                    	source: label,
-                    	target: id
+                    	id: (pid + "->" + cid + num_elements),
+                    	source: pid,
+                    	target: cid,
+						activation: activation
                     }
 		    	});
 		    }
@@ -231,18 +251,17 @@ function Diagram () {
     	legend.layout(legendLayoutOptions);
     }
 
-    function delete_connection () {
+    function _delete () {
     	var selection = cy.$(":selected");
     	cy.remove(selection);
     	return true;
     }
 
-    function connect () {
-    	var parent = selectionData.selected[ 0 ] || undefined;
-    	var child = selectionData.selected[ 1 ] || undefined;
+    function connect (parent, child) {
 
     	if (parent && child) {
     		var label = prompt("Label (leave empty to skip): ");
+			var activation = prompt("Activation data/logic (json): ");
 
     		parent = parent.data().id;
     		child = child.data().id;
@@ -255,10 +274,11 @@ function Diagram () {
                 grabbable: true,
 
                 data: {
-                	//id: (parent + " to " + child),
+                	id: (parent + " to " + child + cy.elements().length),
                 	source: parent,
                 	target: child,
-                	label: label
+                	label: label,
+					activation: activation
                 }
     		});
 
@@ -278,24 +298,41 @@ function Diagram () {
     	cy.json(JSON.parse(prompt("Data: ")));
     }
 
-    $(window).on("keypress", function (event) {
+	function debug () {
+		var selection = cy.$(":selected").collection();
+
+		for (element in selection)
+			if (selection.hasOwnProperty(element))
+				try {
+					console.log(selection[element].data().id);
+				}
+				catch (e) {}
+	}
+
+    $(window).on("keyup", function (event) {
     	console.log("keypress", event.which);
     	switch(event.which) {
-    		case 0:
-    			delete_connection();
+    		case 46:
+    			_delete();
    			break;
 
-   			case 19:
+			case 68:
+				debug();
+			break;
+
+   			case 83:
    				if (event.shiftKey && event.ctrlKey)
    					save();
    			break;
 
-   			case 12:
+   			case 76:
    				if (event.shiftKey && event.ctrlKey)
    					load();
 
    			case 13:
-   				if (!connect())
+				var parent = selectionData.selected[ 0 ] || undefined;
+	    		var child = selectionData.selected[ 1 ] || undefined;
+   				if (!connect(parent, child))
    					layout();
    			break;
 
