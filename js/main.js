@@ -4,312 +4,101 @@ function Diagram () {
 		return new Diagram();
 
     var LEGEND_HEIGHT = this.LEGEND_HEIGHT = 56;
-	var LEGEND_SEPARATION = this.LEGEND_SEPARATION = 50;
 
     var diagramLayoutOptions = this.diagramLayoutOptions = {
         name: "breadthfirst",
         fit: true,
         directed: false,
-        padding: 30,
+        padding: 0,
         avoidOverlap: true,
         animate: true,
         animationDurection: 500
     };
 
-    var legendLayoutOptions = this.legendLayoutOptions = {
-    	name: "preset",
-    	fit: true
-    };
+    this.legendInitialPosition = new vec2d(34, 29.5);
+    this.LEGEND_SEPARATION = new vec2d(50, 0);
 
-    var legendInitialPosition = this.legendInitialPosition = new vec2d(34, 29.5);
+	this.selection = [];
 
-    legendLayoutOptions["height"] = LEGEND_HEIGHT;
-
-    var selectionData = {
-    	selected: []
-    };
-
-    var legend = this.legend = cytoscape({
-        container: document.getElementById("legend"),
-        zoomingEnabled: false,
-        panningEnabled: false,
-        boxSelectionEnabled: false,
-        layout: legendLayoutOptions,
-
-        elements: [{
+    this.legend = [
+        {
             selected: false,
             selectable: true,
             locked: false,
             grabbable: true,
 
-            position: legendInitialPosition,
+            position: this.legendInitialPosition,
 
             data: {
+                isLegend: true,
                 id: "process",
             },
 
-			style: {
-				shape: "rectangle",
-				width: 48
-			}
-        },
+            style: {
+                shape: "rectangle",
+                width: 48
+            }
+        }, 
         {
-        	selected: false,
-        	selectable: true,
-        	locked: false,
-        	grabbable: true,
+            selected: false,
+            selectable: false,
+            locked: true,
+            grabbable: false,
 
-        	position: legendInitialPosition.add(
-        		new vec2d(LEGEND_SEPARATION, 0)
-        	),
+            position: this.legendInitialPosition.add(
+                this.LEGEND_SEPARATION
+            ),
 
-        	data: {
-        		id: "decision"
-        	},
+            data: {
+                isLegend: true,
+                id: "decision"
+            },
 
-			style: {
-				shape: "polygon",
-				"shape-polygon-points": "0 -1 1 0 0 1 -1 0"
-			}
-        }]
+            style: {
+                shape: "polygon",
+                "shape-polygon-points": "0 -1 1 0 0 1 -1 0"
+            }
+        }
+    ];
+
+    var cyStyles;
+
+    var cyStyles_jqhr = $.ajax({
+        url: "/css/node-styles.css",
+        data: null,
+        dataType: "text/css",
+        success: function (data) {
+            cyStyles = data;
+        }
     });
 
-    var cy = this.cy = cytoscape({
+    this.layouts = {
+        breadthfirst: {
+            name: "breadthfirst",
+            fit: true,
+            directed: true,
+            avoidOverlap: true
+        }
+    };
 
-        container: document.getElementById("diagram"),
+    this.cy = cytoscape({
+        container: $("#diagram #container")[0],
+        elements: this.legend,
+        style: cyStyles,
+        layout: this.layouts.breadthfirst,
+
         zoom: 1,
-        minZoom: 0.5,
-        maxZoom: 1.5,
+        minZoom: 0.2,
+        maxZoom: 1.8,
         zoomingEnabled: true,
         userZoomingEnabled: true,
         panningEnabled: true,
-        userPanningEnabled: true,
-        boxSelectionEnabled: true,
-        //selectionType: "single",
-        fit: true,
-
-        elements: [
-        ],
-
-        layout: diagramLayoutOptions,
-
-        style: [
-            {
-                selector: "node",
-                style: {
-                    content: "data(label)",
-                    "text-outline-width": 5,
-                    "text-outline-color": "#888",
-                    "color": "#FFF",
-					"background-color": "#888"
-                }
-            },
-
-            {
-                selector: "edge",
-                style: {
-                    content: "data(label)",
-                    "target-arrow-shape": "triangle",
-                    "text-outline-width": 2,
-                    "text-outline-color": "#888",
-                    "color": "#FFF"
-                }
-            },
-
-            {
-              selector: '.center-center',
-              style: {
-                'text-valign': 'center',
-                'text-halign': 'center'
-              }
-            }
-        ]
+        userPanningEnabled: true
     });
 
-    cy.reset();
+    this.cy.reset();
 
-    function newnodes (event) {
-
-        cy.startBatch();
-
-        var label = prompt("Label: ");
-        var activation = prompt("Node activation data/logic (json): ");
-
-        var parent = selectionData.selected[ 0 ] || undefined;
-        var child  = selectionData.selected[ 1 ] || undefined;
-		var target = event.cyTarget;
-		var num_elements = cy.elements().length;
-
-        if ( label.length > 0 ) {
-
-		    var elements = [];
-
-		    var element = cy.add(
-		        {
-		            group: "nodes",
-		            data: {
-		                id: label + num_elements,
-		                label: label,
-		                activation: activation,
-		                classes: "center-center"
-		            },
-
-		            position: {
-		                x: 50,
-		                y: 200
-		            },
-
-					style: target.style()
-		        }
-		    );
-
-		    if ( parent ) {
-				var pid = parent.data().id;
-		    	var cid = element.data().id;
-
-				activation = prompt("Connection activation data/logic (json): ");
-
-		    	elements.push({
-                    group: "edges",
-                    selected: false,
-                    selectable: true,
-                    locked: false,
-                    grabbable: true,
-
-                    data: {
-                    	id: (pid + "->" + cid + num_elements),
-                    	source: pid,
-                    	target: cid,
-						activation: activation
-                    }
-		    	});
-		    }
-
-		    if ( child ) {
-				var pid = element.data().id;
-		    	var cid = child.data().id;
-
-				activation = prompt("Connection activation data/logic (json): ");
-
-		    	elements.push({
-                    group: "edges",
-                    selected: false,
-                    selectable: true,
-                    locked: false,
-                    grabbable: true,
-
-                    data: {
-                    	id: (pid + "->" + cid + num_elements),
-                    	source: pid,
-                    	target: cid,
-						activation: activation
-                    }
-		    	});
-		    }
-
-		    cy.endBatch();
-
-			for (element in elements)
-				if (elements.hasOwnProperty(element))
-					cy.add(elements[element]);
-		}
-
-	    cy.layout(diagramLayoutOptions);
-    }
-
-    function onselection (event) {
-
-		selectionData.selected.push(event.cyTarget);
-
-        event.cyTarget.style({
-            "background-color": "#000",
-            "text-outline-color": "#000",
-
-            "target-arrow-color": "#000",
-            "line-color": "#000"
-        });
-    }
-
-    function onunselection (event) {
-
-		var targetIndex = selectionData.selected.indexOf(event.cyTarget);
-
-		if ( targetIndex != -1 )
-			selectionData.selected.splice(targetIndex, 1);
-
-        event.cyTarget.style({
-            "background-color": "#888",
-            "text-outline-color": "#888",
-
-            "target-arrow-color": "#ddd",
-            "line-color": "#ddd"
-        });
-    }
-
-    function layout () {
-    	cy.layout(diagramLayoutOptions);
-    	legend.layout(legendLayoutOptions);
-    }
-
-    function _delete () {
-    	var selection = cy.$(":selected");
-    	cy.remove(selection);
-    	return true;
-    }
-
-    function connect (parent, child) {
-
-    	if (parent && child) {
-    		var label = prompt("Label (leave empty to skip): ");
-			var activation = prompt("Activation data/logic (json): ");
-
-    		parent = parent.data().id;
-    		child = child.data().id;
-
-    		cy.add({
-				group: "edges",
-                selected: false,
-                selectable: true,
-                locked: false,
-                grabbable: true,
-
-                data: {
-                	id: (parent + " to " + child + cy.elements().length),
-                	source: parent,
-                	target: child,
-                	label: label,
-					activation: activation
-                }
-    		});
-
-    		return true;
-    	}
-
-    	return false;
-    }
-
-    function save () {
-    	//TODO
-    	prompt("Save", JSON.stringify(cy.json()));
-    	layout();
-    }
-
-    function load () {
-    	cy.json(JSON.parse(prompt("Load")));
-    }
-
-	function debug () {
-		var selection = cy.$(":selected").collection();
-
-		for (element in selection)
-			if (selection.hasOwnProperty(element))
-				try {
-					console.log(selection[element].data().id);
-				}
-				catch (e) {}
-	}
-
-    $(window).on("keyup", function (event) {
+    $(window).on("keyup", this.wrap(function (event) {
     	console.log("keypress", event.which);
     	switch(event.which) {
     		case 46:
@@ -339,17 +128,138 @@ function Diagram () {
    			default:
    			break;
     	}
-    });
+    }));
+    
+    this.cy.on("select", 		this.wrap(this.select));
+    this.cy.on("unselect", 		this.wrap(this.unselect));
+    this.cy.on("click", "node", this.wrap(this.spawn));
 
-    cy.on("select",   "node", onselection);
-    cy.on("unselect", "node", onunselection);
-    cy.on("select",   "edge", onselection);
-    cy.on("unselect", "edge", onunselection);
-
-    legend.nodes().on("click", newnodes);
-
-    window.addEventListener('resize', layout, true);
+    window.addEventListener('resize', this.wrap(this.layout), true);
 }
+
+Diagram.prototype.save = function save () {
+	//TODO
+	prompt("Save", JSON.stringify(
+		this.cy.json()
+	));
+}
+
+Diagram.prototype.load = function load () {
+	this.cy.json(
+		JSON.parse(
+			prompt("Load")
+		)
+	);
+	
+	this.layout();
+}
+
+Diagram.prototype.remove = function remove () {
+	this.cy.remove(":selected");
+}
+
+Diagram.prototype.layout = function layout () {
+
+	this.cy.layout(
+		this.layouts.breadthfirst
+	);
+};
+
+Diagram.prototype.select = function select (event) {
+	
+	this.selection.push(event.cyTarget);
+};
+
+Diagram.prototype.unselect = function unselect (event) {
+
+	var targetIndex = this.selection.indexOf(event.cyTarget);
+
+	if ( targetIndex != -1 )
+		this.selection.splice(targetIndex, 1);
+};
+
+Diagram.prototype.connect = function connect (parent, child) {
+
+	if (parent && child) {
+		var label = prompt("Label (leave empty to skip): ");
+   		var num_elements = this.cy.elements().length;
+
+		parent = parent.data().id;
+		child = child.data().id;
+
+		this.cy.add({
+			group: "edges",
+            selected: false,
+            selectable: true,
+            locked: false,
+            grabbable: true,
+
+            data: {
+            	id: (parent + " -> " + child + " " + num_elements),
+            	source: parent,
+            	target: child,
+            	label: label
+            }
+		});
+
+		return true;
+	}
+
+	return false;
+}
+
+Diagram.prototype.click = function click (event) {
+
+	    this.cy.startBatch();
+
+        var label = prompt("Label: ");
+
+        var parent = this.selection[ 0 ] || undefined;
+        var child  = this.selection[ 1 ] || undefined;
+
+		var target = event.cyTarget;
+
+        if ( label.length > 0 ) {
+
+		    var element = this.cy.add(
+		    	target
+		    );
+		    
+   		    element.selectify();
+		    element.grabify();
+		    element.unlock();
+		    
+		    this.connect(parent, element);
+		    this.connect(element, child);
+
+		}
+		
+		this.layout();
+	    
+	    this.cy.endBatch();
+};
+
+Diagram.prototype.wrap = function wrap (fn) {
+
+	var ctx = this;
+	var user_args = []; // Sane defaults in case arguments.length <= 1
+	
+	if (arguments.length > 1) {
+		user_args = Array.prototype.splice.call(
+			arguments, 
+			[1, arguments.length]
+		);
+	}
+
+	function wrap_handler (fn, args, event) {
+		fn.apply(this, [event].concat(args[0]));
+	}
+	
+	// Wrap user args in an extra layer of array,
+	//  it's either that or unpack stuff in wrap_handler
+	//  and since this is faster...
+	return wrap_handler.bind.apply(wrap_handler, [ctx].concat([fn, [user_args]]));
+};
 
 $(function () {
 	document.diagram = new Diagram();
